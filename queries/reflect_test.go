@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/volatiletech/null/v8/convert"
 	"github.com/volatiletech/sqlboiler/v4/drivers"
 	"github.com/volatiletech/null/v8"
 
@@ -41,12 +42,25 @@ type mockRowMaker struct {
 	rows []driver.Value
 }
 
+type StructField struct {
+	Name string
+}
+
+func (s *StructField) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+	err := convert.ConvertAssign(&s.Name, value)
+	return err
+}
+
 func TestBindStruct(t *testing.T) {
 	t.Parallel()
 
 	testResults := struct {
 		ID   int
 		Name string `boil:"test"`
+		TestPtr *StructField
 	}{}
 
 	query := &Query{
@@ -59,9 +73,9 @@ func TestBindStruct(t *testing.T) {
 		t.Error(err)
 	}
 
-	ret := sqlmock.NewRows([]string{"id", "test"})
-	ret.AddRow(driver.Value(int64(35)), driver.Value("pat"))
-	ret.AddRow(driver.Value(int64(65)), driver.Value("hat"))
+	ret := sqlmock.NewRows([]string{"id", "test", "test_ptr"})
+	ret.AddRow(driver.Value(int64(35)), driver.Value("pat"), driver.Value("pat2"))
+	ret.AddRow(driver.Value(int64(65)), driver.Value("hat"), driver.Value("hat2"))
 	mock.ExpectQuery(`SELECT \* FROM "fun";`).WillReturnRows(ret)
 
 	err = query.Bind(nil, db, &testResults)
@@ -75,6 +89,9 @@ func TestBindStruct(t *testing.T) {
 	if name := testResults.Name; name != "pat" {
 		t.Error("wrong name:", name)
 	}
+	if name := testResults.TestPtr.Name; name != "pat2" {
+		t.Error("wrong name2:", name)
+	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)
@@ -87,6 +104,7 @@ func TestBindSlice(t *testing.T) {
 	testResults := []struct {
 		ID   int
 		Name string `boil:"test"`
+		TestPtr *StructField
 	}{}
 
 	query := &Query{
@@ -99,9 +117,9 @@ func TestBindSlice(t *testing.T) {
 		t.Error(err)
 	}
 
-	ret := sqlmock.NewRows([]string{"id", "test"})
-	ret.AddRow(driver.Value(int64(35)), driver.Value("pat"))
-	ret.AddRow(driver.Value(int64(12)), driver.Value("cat"))
+	ret := sqlmock.NewRows([]string{"id", "test", "test_ptr"})
+	ret.AddRow(driver.Value(int64(35)), driver.Value("pat"), driver.Value("pat2"))
+	ret.AddRow(driver.Value(int64(12)), driver.Value("cat"), driver.Value("cat2"))
 	mock.ExpectQuery(`SELECT \* FROM "fun";`).WillReturnRows(ret)
 
 	err = query.Bind(nil, db, &testResults)
@@ -118,12 +136,18 @@ func TestBindSlice(t *testing.T) {
 	if name := testResults[0].Name; name != "pat" {
 		t.Error("wrong name:", name)
 	}
+	if name := testResults[0].TestPtr.Name; name != "pat2" {
+		t.Error("wrong name2:", name)
+	}
 
 	if id := testResults[1].ID; id != 12 {
 		t.Error("wrong ID:", id)
 	}
 	if name := testResults[1].Name; name != "cat" {
 		t.Error("wrong name:", name)
+	}
+	if name := testResults[1].TestPtr.Name; name != "cat2" {
+		t.Error("wrong name2:", name)
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -445,6 +469,7 @@ func TestBindSingular(t *testing.T) {
 	testResults := struct {
 		ID   int
 		Name string `boil:"test"`
+		TestPtr *StructField
 	}{}
 
 	query := &Query{
@@ -457,8 +482,8 @@ func TestBindSingular(t *testing.T) {
 		t.Error(err)
 	}
 
-	ret := sqlmock.NewRows([]string{"id", "test"})
-	ret.AddRow(driver.Value(int64(35)), driver.Value("pat"))
+	ret := sqlmock.NewRows([]string{"id", "test", "test_ptr"})
+	ret.AddRow(driver.Value(int64(35)), driver.Value("pat"), driver.Value("pat2"))
 	mock.ExpectQuery(`SELECT \* FROM "fun";`).WillReturnRows(ret)
 
 	err = query.Bind(nil, db, &testResults)
@@ -471,6 +496,9 @@ func TestBindSingular(t *testing.T) {
 	}
 	if name := testResults.Name; name != "pat" {
 		t.Error("wrong name:", name)
+	}
+	if name := testResults.TestPtr.Name; name != "pat2" {
+		t.Error("wrong name2:", name)
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
